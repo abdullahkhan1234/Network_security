@@ -1,0 +1,218 @@
+// ---- Top Module: encryption_top.v ----
+module encryption_top (
+    input wire [127:0] plaintext,          // Input plaintext
+    input wire [127:0] secret_key,         // Input secret key
+    output wire [127:0] ciphertext         // Output ciphertext
+);
+
+    wire [127:0] block0, block1, block2, block3, block4, block5, block6, block7;  // Divided blocks
+    wire [127:0] key0, key1, key2, key3, key4, key5, key6, key7;  // Key schedule
+    wire [127:0] enc_xor0, enc_xor1, enc_xor2, enc_xor3, enc_xor4, enc_xor5, enc_xor6, enc_xor7;  // XORed results
+    wire [127:0] encsubstituted_blocks;    // Substituted blocks
+    wire [127:0] shifted_blocks;           // Shifted blocks
+    wire [127:0] encpermutated_blocks;     // Permuted blocks
+
+    // Instantiate the key expansion module
+    key_expansion key_expansion_inst (
+        .secret_key(secret_key),
+        .key0(key0), .key1(key1), .key2(key2), .key3(key3),
+        .key4(key4), .key5(key5), .key6(key6), .key7(key7)
+    );
+
+    // Instantiate the block division module
+    enc_blocks block_division_inst (
+        .plaintext(plaintext),
+        .block_size(128),                    // Adjust block size
+        .block0(block0), .block1(block1), .block2(block2), .block3(block3),
+        .block4(block4), .block5(block5), .block6(block6), .block7(block7)
+    );
+
+    // Instantiate the XOR operation module
+    enc_ciphertext xor_operation_inst (
+        .block0(block0), .block1(block1), .block2(block2), .block3(block3),
+        .block4(block4), .block5(block5), .block6(block6), .block7(block7),
+        .key0(key0), .key1(key1), .key2(key2), .key3(key3),
+        .key4(key4), .key5(key5), .key6(key6), .key7(key7),
+        .enc_xor0(enc_xor0), .enc_xor1(enc_xor1), .enc_xor2(enc_xor2), .enc_xor3(enc_xor3),
+        .enc_xor4(enc_xor4), .enc_xor5(enc_xor5), .enc_xor6(enc_xor6), .enc_xor7(enc_xor7)
+    );
+
+    // Instantiate the substitution module
+    enc_substitution substitution_inst (
+        .enc_xor0(enc_xor0), .enc_xor1(enc_xor1), .enc_xor2(enc_xor2), .enc_xor3(enc_xor3),
+        .enc_xor4(enc_xor4), .enc_xor5(enc_xor5), .enc_xor6(enc_xor6), .enc_xor7(enc_xor7),
+        .encsubstituted_blocks(encsubstituted_blocks)
+    );
+
+    // Instantiate the cyclic shift module
+    enc_cyclic cyclic_shift_inst (
+        .encsubstituted_blocks(encsubstituted_blocks),
+        .shift_value(7),                      // Example shift value
+        .shifted_blocks(shifted_blocks)
+    );
+
+    // Instantiate the permutation module
+    enc_perm permutation_inst (
+        .secret_key(secret_key),
+        .encsubstituted_blocks(encsubstituted_blocks),
+        .block_size(128),                     // Adjust block size
+        .encpermutated_blocks(encpermutated_blocks)
+    );
+
+    // Final ciphertext
+    encplain_text final_ciphertext_inst (
+        .encpermutated_blocks(encpermutated_blocks),
+        .ciphertext(ciphertext)
+    );
+
+endmodule
+
+// ---- Module 1: blocksize_calc.v ----
+module blocksize_calc (
+    input wire [6:0] block_size,             // Input block size (64 to 128)
+    output reg [127:0] blocks_out           // Output based on block size
+);
+
+    always @(*) begin
+        blocks_out = 128'b0;   // Initialize to zero (for example purposes)
+    end
+
+endmodule
+
+// ---- Module 2: key_expansion.v ----
+module key_expansion (
+    input wire [127:0] secret_key,       // Secret key
+    output reg [127:0] key0, key1, key2, key3, key4, key5, key6, key7 // Key schedule (expand keys)
+);
+
+    always @(*) begin
+        key0 = secret_key;
+        key1 = secret_key ^ 128'hA5A5A5A5A5A5A5A5; // Example key expansion
+        key2 = secret_key ^ 128'h5A5A5A5A5A5A5A5A; // Another example key expansion
+        // Continue for other keys...
+    end
+
+endmodule
+
+// ---- Module 3: enc_blocks.v ----
+module enc_blocks (
+    input wire [127:0] plaintext,           // Plaintext to be divided
+    input wire [6:0] block_size,            // Block size
+    output reg [127:0] block0, block1, block2, block3, block4, block5, block6, block7 // Individual blocks
+);
+
+    integer i;
+    integer num_blocks;
+
+    always @(*) begin
+        num_blocks = (128 + block_size - 1) / block_size; // Calculate number of blocks
+
+        // Divide the plaintext into blocks
+        block0 = plaintext[127:0]; // Example: Assign blocks individually
+        block1 = plaintext[127:0]; // Repeat this for all blocks
+        block2 = plaintext[127:0];
+        block3 = plaintext[127:0];
+        block4 = plaintext[127:0];
+        block5 = plaintext[127:0];
+        block6 = plaintext[127:0];
+        block7 = plaintext[127:0];
+    end
+
+endmodule
+
+// ---- Module 4: enc_ciphertext.v ----
+module enc_ciphertext (
+    input wire [127:0] block0, block1, block2, block3, block4, block5, block6, block7,       // Plaintext blocks
+    input wire [127:0] key0, key1, key2, key3, key4, key5, key6, key7,         // Key schedule
+    output reg [127:0] enc_xor0, enc_xor1, enc_xor2, enc_xor3, enc_xor4, enc_xor5, enc_xor6, enc_xor7       // XOR result for each block
+);
+
+    always @(*) begin
+        enc_xor0 = block0 ^ key0; // XOR operation between block and key
+        enc_xor1 = block1 ^ key1;
+        enc_xor2 = block2 ^ key2;
+        enc_xor3 = block3 ^ key3;
+        enc_xor4 = block4 ^ key4;
+        enc_xor5 = block5 ^ key5;
+        enc_xor6 = block6 ^ key6;
+        enc_xor7 = block7 ^ key7;
+    end
+
+endmodule
+
+// ---- Module 5: enc_substitution.v ----
+module enc_substitution (
+    input wire [127:0] enc_xor0, enc_xor1, enc_xor2, enc_xor3, enc_xor4, enc_xor5, enc_xor6, enc_xor7,        // XOR result of blocks
+    output reg [127:0] encsubstituted_blocks  // Substituted blocks
+);
+
+    always @(*) begin
+        // Substitute blocks with some transformation (XOR with a constant for simplicity)
+        encsubstituted_blocks = enc_xor0 ^ 128'hA5A5A5A5A5A5A5A5;
+    end
+
+endmodule
+
+// ---- Module 6: enc_cyclic.v ----
+module enc_cyclic (
+    input wire [127:0] encsubstituted_blocks,  // Substituted blocks
+    input wire [6:0] shift_value,              // Shift value
+    output reg [127:0] shifted_blocks          // Shifted blocks
+);
+
+    always @(*) begin
+        shifted_blocks = encsubstituted_blocks << shift_value;
+    end
+
+endmodule
+
+// ---- Module 7: enc_perm.v ----
+module enc_perm (
+    input wire [127:0] secret_key,        // Secret key
+    input wire [127:0] encsubstituted_blocks,  // Substituted blocks
+    input wire [6:0] block_size,          // Block size
+    output reg [127:0] encpermutated_blocks // Permuted blocks
+);
+
+    always @(*) begin
+        encpermutated_blocks = encsubstituted_blocks << (block_size % 16);
+    end
+
+endmodule
+
+// ---- Module 8: encplain_text.v ----
+module encplain_text (
+    input wire [127:0] encpermutated_blocks,   // Permutated blocks
+    output reg [127:0] ciphertext              // Final encrypted ciphertext
+);
+
+    always @(*) begin
+        ciphertext = encpermutated_blocks;
+    end
+
+endmodule
+
+// ---- Testbench ----
+module testbench();
+
+    reg [127:0] plaintext;
+    reg [127:0] secret_key;
+    wire [127:0] ciphertext;
+
+    // Instantiate the encryption module
+    encryption_top encrypt (
+        .plaintext(plaintext),
+        .secret_key(secret_key),
+        .ciphertext(ciphertext)
+    );
+
+    initial begin
+        // Test with sample plaintext and key
+        plaintext = 128'h0123456789abcdef0123456789abcdef;
+        secret_key = 128'habcdef0123456789abcdef0123456789;
+
+        // Display the result
+        #10;
+        $display("Ciphertext: %h", ciphertext);
+    end
+endmodule
